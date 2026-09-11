@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageTags>aspire hosting swagger swagger-ui openapi documentation</PackageTags>
+    <Description>Swagger UI hosting support for Aspire with explicit API registration and CORS feedback.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" />
+  </ItemGroup>
+</Project>

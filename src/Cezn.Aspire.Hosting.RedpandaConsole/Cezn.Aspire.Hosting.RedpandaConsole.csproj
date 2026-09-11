@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageTags>aspire hosting kafka redpanda console</PackageTags>
+    <Description>Redpanda Console hosting support for Aspire.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Kafka" />
+    <ProjectReference Include="..\Cezn.Aspire.Hosting.SchemaRegistry\Cezn.Aspire.Hosting.SchemaRegistry.csproj" />
+    <ProjectReference Include="..\Cezn.Aspire.Hosting.KafkaConnect\Cezn.Aspire.Hosting.KafkaConnect.csproj" />
+  </ItemGroup>
+</Project>

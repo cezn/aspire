@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="../../src/Cezn.Aspire.Hosting.KafkaConnect/Cezn.Aspire.Hosting.KafkaConnect.csproj" />
+  <Project Path="../../src/Cezn.Aspire.Hosting.RedpandaConsole/Cezn.Aspire.Hosting.RedpandaConsole.csproj" />
+  <Project Path="../../src/Cezn.Aspire.Hosting.SchemaRegistry/Cezn.Aspire.Hosting.SchemaRegistry.csproj" />
+  <Project Path="PostgresqlSourceConnector.AppHost/PostgresqlSourceConnector.AppHost.csproj" />
+  <Project Path="PostgresqlSourceConnector.ServiceDefaults/PostgresqlSourceConnector.ServiceDefaults.csproj" />
+  <Project Path="PostgresqlSourceConnector.TodosApi/PostgresqlSourceConnector.TodosApi.csproj" />
+</Solution>

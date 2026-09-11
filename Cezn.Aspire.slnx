@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cezn.Aspire.Hosting.KafkaConnect/Cezn.Aspire.Hosting.KafkaConnect.csproj" />
+    <Project Path="src/Cezn.Aspire.Hosting.RedpandaConsole/Cezn.Aspire.Hosting.RedpandaConsole.csproj" />
+    <Project Path="src/Cezn.Aspire.Hosting.SchemaRegistry/Cezn.Aspire.Hosting.SchemaRegistry.csproj" />
+    <Project Path="src/Cezn.Aspire.Hosting.Grate/Cezn.Aspire.Hosting.Grate.csproj" />
+  </Folder>
+</Solution>
