@@ -39,6 +39,17 @@ var kafkaConnect = builder.AddKafkaConnect("kafka-connect")
     .WithDockerfile("../my-connect-image");
 ```
 
+To route telemetry through an OTel collector instead of the Aspire dashboard:
+
+```csharp
+var otelCollector = builder.AddOtelCollector("otel-collector");
+
+var kafkaConnect = builder.AddKafkaConnect("kafka-connect")
+    .WithKafka(kafka)
+    .WithOtel(otelCollector)
+    .WithDockerfile("../my-connect-image");
+```
+
 ### Debezium PostgreSQL Connector
 
 ```csharp

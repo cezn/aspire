@@ -52,46 +52,45 @@ public static class KafkaConnectBuilderExtensions
         var plaintextEndpoint = kafka.Resource.InternalEndpoint;
         var httpEndpoint = builder.Resource.HttpEndpoint;
 
-        return builder
-            .WithEnvironment(ctx =>
-            {
-                var env = ctx.EnvironmentVariables;
+        return builder.WithEnvironment(ctx =>
+        {
+            var env = ctx.EnvironmentVariables;
 
-                // Connect classpath
-                env["CONNECT_PLUGIN_PATH"] = "/usr/share/java,/usr/share/confluent-hub-components";
+            // Connect classpath
+            env["CONNECT_PLUGIN_PATH"] = "/usr/share/java,/usr/share/confluent-hub-components";
 
-                // Converters
-                env["CONNECT_KEY_CONVERTER"] = "org.apache.kafka.connect.converters.ByteArrayConverter";
-                env["CONNECT_VALUE_CONVERTER"] = "org.apache.kafka.connect.converters.ByteArrayConverter";
+            // Converters
+            env["CONNECT_KEY_CONVERTER"] = "org.apache.kafka.connect.converters.ByteArrayConverter";
+            env["CONNECT_VALUE_CONVERTER"] = "org.apache.kafka.connect.converters.ByteArrayConverter";
 
-                // Bootstrap servers
-                env["CONNECT_BOOTSTRAP_SERVERS"] = ReferenceExpression.Create(
-                    $"PLAINTEXT://{plaintextEndpoint.Property(EndpointProperty.HostAndPort)}"
-                );
+            // Bootstrap servers
+            env["CONNECT_BOOTSTRAP_SERVERS"] = ReferenceExpression.Create(
+                $"PLAINTEXT://{plaintextEndpoint.Property(EndpointProperty.HostAndPort)}"
+            );
 
-                // GC
-                env["CONNECT_GC_LOG_ENABLED"] = "false";
-                env["CONNECT_HEAP_OPTS"] = "-Xms256M -Xmx256M";
+            // GC
+            env["CONNECT_GC_LOG_ENABLED"] = "false";
+            env["CONNECT_HEAP_OPTS"] = "-Xms256M -Xmx256M";
 
-                // REST API
-                env["CONNECT_REST_ADVERTISED_HOST_NAME"] = httpEndpoint.Property(EndpointProperty.Host);
-                env["CONNECT_REST_PORT"] = httpEndpoint.Property(EndpointProperty.Port);
+            // REST API
+            env["CONNECT_REST_ADVERTISED_HOST_NAME"] = httpEndpoint.Property(EndpointProperty.Host);
+            env["CONNECT_REST_PORT"] = httpEndpoint.Property(EndpointProperty.Port);
 
-                // Distributed config topics
-                env["CONNECT_GROUP_ID"] = "docker-connect-group";
-                env["CONNECT_CONFIG_STORAGE_TOPIC"] = "docker-connect-configs";
-                env["CONNECT_OFFSET_STORAGE_TOPIC"] = "docker-connect-offsets";
-                env["CONNECT_STATUS_STORAGE_TOPIC"] = "docker-connect-status";
-                env["CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR"] = "1";
-                env["CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR"] = "1";
-                env["CONNECT_STATUS_STORAGE_REPLICATION_FACTOR"] = "1";
-                env["CONNECT_CONFIG_STORAGE_PARTITIONS"] = "1";
-                env["CONNECT_OFFSET_STORAGE_PARTITIONS"] = "1";
-                env["CONNECT_STATUS_STORAGE_PARTITIONS"] = "1";
+            // Distributed config topics
+            env["CONNECT_GROUP_ID"] = "docker-connect-group";
+            env["CONNECT_CONFIG_STORAGE_TOPIC"] = "docker-connect-configs";
+            env["CONNECT_OFFSET_STORAGE_TOPIC"] = "docker-connect-offsets";
+            env["CONNECT_STATUS_STORAGE_TOPIC"] = "docker-connect-status";
+            env["CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR"] = "1";
+            env["CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR"] = "1";
+            env["CONNECT_STATUS_STORAGE_REPLICATION_FACTOR"] = "1";
+            env["CONNECT_CONFIG_STORAGE_PARTITIONS"] = "1";
+            env["CONNECT_OFFSET_STORAGE_PARTITIONS"] = "1";
+            env["CONNECT_STATUS_STORAGE_PARTITIONS"] = "1";
 
-                // Logging
-                env["CONNECT_LOG_LEVEL"] = "info";
-            });
+            // Logging
+            env["CONNECT_LOG_LEVEL"] = "info";
+        });
     }
 
     /// <summary>
@@ -102,19 +101,50 @@ public static class KafkaConnectBuilderExtensions
     /// <returns>The resource builder for further chaining.</returns>
     public static IResourceBuilder<KafkaConnectResource> WithOtel(this IResourceBuilder<KafkaConnectResource> builder)
     {
-        return builder
-            .WithEnvironment(ctx =>
-            {
-                var env = ctx.EnvironmentVariables;
+        return builder.WithOtel(null);
+    }
 
-                env["CONNECT_PRODUCER_INTERCEPTOR_CLASSES"] = "io.debezium.tracing.DebeziumTracingProducerInterceptor";
-                env["ENABLE_OTEL"] = "true";
-                env["KAFKA_OPTS"] =
-                    "-javaagent:/otel/opentelemetry-javaagent.jar -Dotel.instrumentation.kafka.enabled=false";
-                env["OTEL_RESOURCE_ATTRIBUTES"] = "service.version=1.0,deployment.environment=production";
-                env["OTEL_PROPAGATORS"] = "tracecontext";
-                env["OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED"] = "true";
-            })
+    /// <summary>
+    /// Configures OpenTelemetry environment variables for a Kafka Connect
+    /// container resource. When <paramref name="otelCollector"/> is provided,
+    /// telemetry is routed through the OTel collector instead of the Aspire
+    /// dashboard directly; otherwise it is sent to the Aspire dashboard.
+    /// </summary>
+    /// <param name="builder">The Kafka Connect resource builder.</param>
+    /// <param name="otelCollector">The OTel collector resource, or <c>null</c> to export to the Aspire dashboard.</param>
+    /// <returns>The resource builder for further chaining.</returns>
+    public static IResourceBuilder<KafkaConnectResource> WithOtel(
+        this IResourceBuilder<KafkaConnectResource> builder,
+        IResourceBuilder<ContainerResource>? otelCollector
+    )
+    {
+        builder.WithEnvironment(ctx =>
+        {
+            var env = ctx.EnvironmentVariables;
+
+            env["CONNECT_PRODUCER_INTERCEPTOR_CLASSES"] = "io.debezium.tracing.DebeziumTracingProducerInterceptor";
+            env["ENABLE_OTEL"] = "true";
+            env["KAFKA_OPTS"] =
+                "-javaagent:/otel/opentelemetry-javaagent.jar -Dotel.instrumentation.kafka.enabled=false";
+            env["OTEL_RESOURCE_ATTRIBUTES"] = "service.version=1.0,deployment.environment=production";
+            env["OTEL_PROPAGATORS"] = "tracecontext";
+            env["OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED"] = "true";
+        });
+
+        if (otelCollector is not null)
+        {
+            // Route telemetry through the OTel collector (plain gRPC, no dashboard TLS).
+            return builder
+                .WithOtlpExporter()
+                .WithEnvironment(ctx =>
+                {
+                    ctx.EnvironmentVariables["OTEL_EXPORTER_OTLP_ENDPOINT"] = otelCollector.GetEndpoint("grpc");
+                    ctx.EnvironmentVariables["OTEL_EXPORTER_OTLP_INSECURE"] = "true";
+                });
+        }
+
+        // Export directly to the Aspire dashboard (TLS with the developer certificate).
+        return builder
             .WithOtlpExporter()
             .WithDeveloperCertificateTrust(true)
             .WithCertificateTrustConfiguration(async ctx =>
