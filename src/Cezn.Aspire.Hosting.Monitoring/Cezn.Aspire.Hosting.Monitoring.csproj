@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageTags>aspire hosting monitoring prometheus grafana jmx-exporter kafka metrics</PackageTags>
+    <Description>Monitoring stack (Prometheus, Grafana, Kafka JMX exporter) hosting support for Aspire.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting" />
+    <PackageReference Include="Aspire.Hosting.Kafka" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None
+      Include="config/**"
+      Pack="true"
+      PackagePath="config/"
+      CopyToOutputDirectory="PreserveNewest"
+    />
+  </ItemGroup>
+</Project>
