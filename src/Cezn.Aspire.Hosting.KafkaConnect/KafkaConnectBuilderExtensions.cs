@@ -131,6 +131,18 @@ public static class KafkaConnectBuilderExtensions
             env["OTEL_INSTRUMENTATION_COMMON_DEFAULT_ENABLED"] = "true";
         });
 
+        // The Debezium tracing interceptor jars must be on the classpath in both
+        // modes, otherwise the connector producer fails with ClassNotFoundException.
+        builder.WithArgs(
+            "bash",
+            "-c",
+            "export CLASSPATH=$CLASSPATH:/usr/share/java/otel-lib/*; "
+                + "if [ -n \"$ASPIRE_CERT_PATH\" ] && [ -f \"$ASPIRE_CERT_PATH\" ]; then "
+                + "keytool -importcert -noprompt -trustcacerts -file \"$ASPIRE_CERT_PATH\" "
+                + "-keystore /tmp/aspire-truststore.p12 -storetype PKCS12 -storepass changeit -alias aspire-dev-cert; fi; "
+                + "/etc/confluent/docker/run"
+        );
+
         if (otelCollector is not null)
         {
             // Route telemetry through the OTel collector (plain gRPC, no dashboard TLS).
@@ -156,15 +168,6 @@ public static class KafkaConnectBuilderExtensions
                     + "-Djavax.net.ssl.trustStore=/tmp/aspire-truststore.p12 "
                     + "-Djavax.net.ssl.trustStoreType=PKCS12 "
                     + "-Djavax.net.ssl.trustStorePassword=changeit";
-            })
-            .WithArgs(
-                "bash",
-                "-c",
-                "export CLASSPATH=$CLASSPATH:/usr/share/java/otel-lib/*; "
-                    + "if [ -n \"$ASPIRE_CERT_PATH\" ] && [ -f \"$ASPIRE_CERT_PATH\" ]; then "
-                    + "keytool -importcert -noprompt -trustcacerts -file \"$ASPIRE_CERT_PATH\" "
-                    + "-keystore /tmp/aspire-truststore.p12 -storetype PKCS12 -storepass changeit -alias aspire-dev-cert; fi; "
-                    + "/etc/confluent/docker/run"
-            );
+            });
     }
 }
