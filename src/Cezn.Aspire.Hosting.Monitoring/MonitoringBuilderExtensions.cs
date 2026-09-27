@@ -160,6 +160,34 @@ public static class MonitoringBuilderExtensions
                       scrape_timeout: 3s
                       evaluation_interval: 1m
 
+                    storage:
+                      tsdb:
+                        out_of_order_time_window: "30s"
+
+                    otlp:
+                      # set to 'true' to add service.name and service.instance.id to target_info metric.
+                      # without it, only 'job' and 'instance' are available (they contain the same values).
+                      keep_identifying_resource_attributes: false
+                      # Recommended attributes to be promoted to labels.
+                      promote_resource_attributes:
+                        - service.instance.id
+                        - service.name
+                        - service.namespace
+                        - cloud.availability_zone
+                        - cloud.region
+                        - container.name
+                        - deployment.environment.name
+                        - k8s.cluster.name
+                        - k8s.container.name
+                        - k8s.cronjob.name
+                        - k8s.daemonset.name
+                        - k8s.deployment.name
+                        - k8s.job.name
+                        - k8s.namespace.name
+                        - k8s.pod.name
+                        - k8s.replicaset.name
+                        - k8s.statefulset.name
+
                     scrape_configs:
                       - job_name: 'kafka-broker'
                         scrape_interval: 15s
