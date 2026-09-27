@@ -148,6 +148,178 @@ internal static class KafkaTopicCommandHandler
         }
     }
 
+    internal static async Task<ExecuteCommandResult> ExecuteClearTopicAsync(
+        KafkaTopicResource resource,
+        ILogger logger,
+        ResourceNotificationService notificationService,
+        CancellationToken cancellationToken
+    )
+    {
+        resource.IsExecutingCommand = true;
+
+        try
+        {
+            await notificationService
+                .PublishUpdateAsync(
+                    resource,
+                    s =>
+                        s with
+                        {
+                            State = KnownResourceStates.Running,
+                            StartTimeStamp = DateTime.UtcNow,
+                            StopTimeStamp = null,
+                        }
+                )
+                .ConfigureAwait(false);
+
+            var containerId = await ResolveKafkaContainerIdAsync(resource, notificationService, cancellationToken)
+                .ConfigureAwait(false);
+
+            logger.LogInformation(
+                "Clearing Kafka topic '{TopicName}' (delete + recreate) on Kafka container '{ContainerId}'...",
+                resource.TopicName,
+                containerId
+            );
+
+            var escapedTopic = resource.TopicName.Replace("\"", "\\\"");
+            var deleteArgs = new StringBuilder();
+            deleteArgs.Append("exec -e KAFKA_JMX_OPTS=\"\" ");
+            deleteArgs.Append(containerId);
+            deleteArgs.Append(" kafka-topics --bootstrap-server localhost:9092 --delete");
+            deleteArgs.Append(" --topic \"").Append(escapedTopic).Append("\"");
+
+            var deleteResult = await RunDockerWithRetryAsync(
+                deleteArgs.ToString(),
+                "Kafka topic deletion",
+                logger,
+                cancellationToken
+            );
+            if (!deleteResult.Success)
+            {
+                return deleteResult;
+            }
+
+            var createArgs = new StringBuilder();
+            createArgs.Append("exec -e KAFKA_JMX_OPTS=\"\" ");
+            createArgs.Append(containerId);
+            createArgs.Append(" kafka-topics --bootstrap-server localhost:9092 --create");
+            createArgs.Append(" --topic \"").Append(escapedTopic).Append("\"");
+            createArgs.Append(" --partitions ").Append(resource.Partitions);
+            createArgs.Append(" --replication-factor ").Append(resource.ReplicationFactor);
+            foreach (var (key, value) in resource.Configs)
+            {
+                createArgs.Append(" --config ");
+                createArgs.Append(key.Replace("\"", "\\\""));
+                createArgs.Append('=');
+                createArgs.Append(value.Replace("\"", "\\\""));
+            }
+
+            var createResult = await RunDockerWithRetryAsync(
+                createArgs.ToString(),
+                "Kafka topic recreation",
+                logger,
+                cancellationToken
+            );
+
+            // 'IsExecutingCommand' must be set before updating resource's state. Only then command status is refreshed.
+            resource.IsExecutingCommand = false;
+            await notificationService
+                .PublishUpdateAsync(
+                    resource,
+                    s =>
+                        s with
+                        {
+                            State = createResult.Success
+                                ? KnownResourceStates.Finished
+                                : KnownResourceStates.FailedToStart,
+                            StopTimeStamp = DateTime.UtcNow,
+                        }
+                )
+                .ConfigureAwait(false);
+
+            return createResult;
+        }
+        catch (OperationCanceledException)
+        {
+            resource.IsExecutingCommand = false;
+            await notificationService
+                .PublishUpdateAsync(
+                    resource,
+                    s => s with { State = KnownResourceStates.FailedToStart, StopTimeStamp = DateTime.UtcNow }
+                )
+                .ConfigureAwait(false);
+            return CommandResults.Canceled();
+        }
+        catch (Exception ex)
+        {
+            resource.IsExecutingCommand = false;
+            await notificationService
+                .PublishUpdateAsync(
+                    resource,
+                    s => s with { State = KnownResourceStates.FailedToStart, StopTimeStamp = DateTime.UtcNow }
+                )
+                .ConfigureAwait(false);
+            return new ExecuteCommandResult { Success = false, Message = ex.Message };
+        }
+    }
+
+    static async Task<ExecuteCommandResult> RunDockerWithRetryAsync(
+        string dockerArguments,
+        string operationDescription,
+        ILogger logger,
+        CancellationToken cancellationToken
+    )
+    {
+        // The broker may not accept connections yet when the container is reported
+        // as running, so retry the command until it succeeds or times out.
+        var lastExitCode = -1;
+        var deadline = DateTime.UtcNow.AddMinutes(3);
+        while (DateTime.UtcNow < deadline)
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = dockerArguments,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+
+            logger.LogInformation(
+                "{Operation} with arguments: docker {Arguments}",
+                operationDescription,
+                startInfo.Arguments
+            );
+            var process = Process.Start(startInfo);
+            if (process is null)
+            {
+                return new ExecuteCommandResult { Success = false, Message = "Failed to start docker process." };
+            }
+
+            var stdoutTask = StreamOutputAsync(process.StandardOutput, logger, false, cancellationToken);
+            var stderrTask = StreamOutputAsync(process.StandardError, logger, true, cancellationToken);
+
+            await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+
+            lastExitCode = process.ExitCode;
+            if (process.ExitCode == 0)
+            {
+                return CommandResults.Success();
+            }
+
+            logger.LogWarning(
+                "{Operation} attempt failed (exit code {ExitCode}), retrying in 5s...",
+                operationDescription,
+                process.ExitCode
+            );
+            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
+        }
+
+        return new ExecuteCommandResult { Success = false, Message = "docker exited with code " + lastExitCode + "." };
+    }
+
     static async Task<string> ResolveKafkaContainerIdAsync(
         KafkaTopicResource resource,
         ResourceNotificationService notificationService,

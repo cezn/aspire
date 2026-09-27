@@ -45,6 +45,19 @@ public static class KafkaTopicBuilderExtensions
             }
         );
 
+        resourceBuilder.WithCommand(
+            name: "kafka-clear-topic",
+            displayName: "Clear Topic",
+            executeCommand: context => HandleClearCommandAsync(context, resource),
+            commandOptions: new CommandOptions
+            {
+                Description = "Clear the Kafka topic by deleting and recreating it (removes all messages)",
+                IconName = "Trash",
+                IconVariant = IconVariant.Regular,
+                UpdateState = context => GetCommandState(resource),
+            }
+        );
+
         return resourceBuilder;
     }
 
@@ -151,6 +164,22 @@ public static class KafkaTopicBuilderExtensions
         var notificationService = context.Services.GetRequiredService<ResourceNotificationService>();
 
         return await KafkaTopicCommandHandler.ExecuteCreateTopicAsync(
+            resource,
+            logger,
+            notificationService,
+            context.CancellationToken
+        );
+    }
+
+    static async Task<ExecuteCommandResult> HandleClearCommandAsync(
+        ExecuteCommandContext context,
+        KafkaTopicResource resource
+    )
+    {
+        var logger = context.Logger;
+        var notificationService = context.Services.GetRequiredService<ResourceNotificationService>();
+
+        return await KafkaTopicCommandHandler.ExecuteClearTopicAsync(
             resource,
             logger,
             notificationService,
